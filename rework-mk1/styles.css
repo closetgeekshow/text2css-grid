@@ -1,0 +1,19 @@
+body {
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-rows: var(--grid-rows);
+  grid-template-columns: var(--grid-cols);
+  grid-gap: 5px;
+  max-width: 1200px;
+  height: 100vh;
+  margin: 0 auto;
+}
+
+.grid div {
+  text-align: center;
+  line-height: calc(var(--hgt) / var(--nrows) * 100vh);
+  color: #860ef5;
+}
