@@ -1,0 +1,242 @@
+<link href="styles.css" rel="stylesheet" type="text/css">
+
+<div class="grid"></div> <!-- grid container -->
+
+<script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+<script>
+$(function() {
+var layout =`
++---+---+---+---+---+
+|   |       |       |
++---+---+---+---+---+
+|   |   |   |   |   |
+|   +---+---+   |   |
+|   |   |   |   |   |
++---+---+---+---+---+
+|   |               |
++---+---------------+
+|               |   |
++---------------+---+
+|       |   |       |
++---+---+---+---+---+
+`;
+
+/**
+ * Splits the layout string into an array of lines.
+ * @param {string} layout - The input layout string.
+ * @return {string[]} An array of layout lines.
+ */
+function splitLines(layout) {
+    return layout.split(/[\r\n]/);
+}
+
+/**
+ * Processes a single line of the layout.
+ * @param {string} line - A single line from the layout.
+ * @return {number[]} An array of processed box widths.
+ */
+function processLine(line) {
+    if (line.match(/\+/)) {
+        return processLineWithPlus(line);
+    } else {
+        return processLineWithoutPlus(line);
+    }
+}
+
+/**
+ * Processes a line containing '+' characters.
+ * @param {string} line - A line containing '+' characters.
+ * @return {number[]} An array of processed box widths.
+ */
+function processLineWithPlus(line) {
+    return line.split(/[\+\|]/)
+               .filter(e => e)
+               .map(processBox);
+}
+
+/**
+ * Processes a line not containing '+' characters.
+ * @param {string} line - A line not containing '+' characters.
+ * @return {number[]} An array of box widths.
+ */
+function processLineWithoutPlus(line) {
+    return line.split(/\|/)
+               .filter(e => e)
+               .map(b => b.length + 1);
+}
+
+/**
+ * Processes a single box string.
+ * @param {string} b - A string representing a box.
+ * @return {number} The processed box width (positive or negative).
+ */
+function processBox(b) {
+    if (b.match(/^\-+$/)) {
+        return -(b.length + 1);
+    } else {
+        return b.length + 1;
+    }
+}
+
+/**
+ * Filters out empty arrays from the input array.
+ * @param {any[][]} arr - An array of arrays.
+ * @return {any[][]} An array with empty arrays removed.
+ */
+function filterEmptyArrays(arr) {
+    return arr.filter(e => e.length);
+}
+
+/**
+ * Processes the entire layout string.
+ * @param {string} layout - The input layout string.
+ * @return {number[][]} A 2D array representing the processed layout.
+ */
+function processLayout(layout) {
+    return filterEmptyArrays(
+        splitLines(layout).map(processLine)
+    );
+}
+
+// Usage
+var lines = processLayout(layout);
+var bgcolors = ["#f7a7a7", "#d0f7a7", "#f7d6a7", "#a7e2f7", "#e7bafb", "#fbbadc", "#def5d1", "#f7f1a7", "#b5fdd6", "#fb9387"]; //put some nice background colors here for our boxes
+var crow = 0;      // current row. not the bird :)
+var boxes = [];    // the array that contains all box definitions
+
+lines.filter(e => e) // filter out zero length lines
+.forEach(function(e) {
+/**
+ * Calculates the start columns for boxes in a line.
+ * @param {number[]} e - An array representing a line of boxes.
+ * @return {number[]} An array of start column positions.
+ */
+function getStartColumns(e) {
+    return e.map((x, i, a) => a.filter((y, j) => j < i).reduce((s, z) => s + Math.abs(z), 1));
+}
+
+/**
+ * Finds open boxes at a specific column.
+ * @param {number} col - The column to check.
+ * @return {Object[]} An array of open boxes at the specified column.
+ */
+function findOpenBoxesAtColumn(col) {
+    return boxes.filter(b => b.col === col && b.opn);
+}
+
+/**
+ * Adds a row to open boxes.
+ * @param {Object[]} openBoxes - An array of open boxes.
+ */
+function addRowToOpenBoxes(openBoxes) {
+    openBoxes.forEach(b => b.hgt++);
+}
+
+/**
+ * Creates a new box object.
+ * @param {number} row - The row of the new box.
+ * @param {number} col - The column of the new box.
+ * @param {number} width - The width of the new box.
+ * @param {string} color - The color of the new box.
+ * @return {Object} A new box object.
+ */
+function createNewBox(row, col, width, color) {
+    return {
+        row: row,
+        col: col,
+        wid: width,
+        hgt: 1,
+        clr: color,
+        opn: true
+    };
+}
+
+/**
+ * Closes open boxes.
+ * @param {Object[]} openBoxes - An array of open boxes to close.
+ */
+function closeOpenBoxes(openBoxes) {
+    openBoxes.forEach(b => {
+        b.hgt++;
+        b.opn = false;
+    });
+}
+
+/**
+ * Processes a single line of the layout.
+ * @param {number[]} e - An array representing a line of boxes.
+ * @param {number} crow - The current row number.
+ * @return {number} The next row number.
+ */
+function processLine(e, crow) {
+    let o = getStartColumns(e);
+    e.forEach((x, i) => {
+        let openBoxes = findOpenBoxesAtColumn(o[i]);
+        if (x > 0) {
+            if (openBoxes.length) {
+                addRowToOpenBoxes(openBoxes);
+            } else {
+                let newBox = createNewBox(crow, o[i], x, bgcolors[boxes.length % bgcolors.length]);
+                boxes.push(newBox);
+            }
+        } else {
+            closeOpenBoxes(openBoxes);
+        }
+    });
+    return crow + 1;
+}
+
+// Main processing
+crow = processLine(e, crow);
+});
+
+/**
+ * Calculates the grid dimensions based on the layout lines.
+ * @param {number[][]} lines - A 2D array representing the layout.
+ * @return {Object} An object containing the number of rows and columns.
+ */
+function calculateGridDimensions(lines) {
+    const nrows = lines.length - 1;
+    const ncols = lines[0].reduce((s, e) => s + Math.abs(e), 0);
+    return { nrows, ncols };
+}
+
+/**
+ * Sets CSS variables for the grid layout.
+ * @param {number} nrows - The number of rows in the grid.
+ * @param {number} ncols - The number of columns in the grid.
+ */
+function setGridCSSVariables(nrows, ncols) {
+    const rows = `repeat(${nrows}, 1fr)`;
+    const cols = `repeat(${ncols}, 1fr)`;
+    document.documentElement.style.setProperty('--grid-rows', rows);
+    document.documentElement.style.setProperty('--grid-cols', cols);
+    document.documentElement.style.setProperty('--nrows', nrows);
+}
+
+/**
+ * Creates a new div element for a box.
+ * @param {Object} box - The box object to create an element for.
+ * @param {number} index - The index of the box.
+ * @return {jQuery} A jQuery object representing the new div element.
+ */
+function createBoxElement(box, index) {
+    return $(`<div>${index + 1}</div>`)
+        .attr('style', `--row: ${box.row}; --col: ${box.col}; --wid: ${box.wid}; --hgt: ${box.hgt}; --bg-color: ${box.clr};`);
+}
+
+/**
+ * Appends all box elements to the grid.
+ * @param {Object[]} boxes - An array of box objects.
+ */
+function appendBoxesToGrid(boxes) {
+    boxes.forEach((box, index) => {
+        createBoxElement(box, index).appendTo('.grid');
+    });
+}
+
+// Main processing
+const { nrows, ncols } = calculateGridDimensions(lines);
+setGridCSSVariables(nrows, ncols);
+appendBoxesToGrid(boxes);});
+</script>
